@@ -28,7 +28,8 @@ public class SecurityConfiguration {
                         .requestMatchers("/usuarios/cadastrar", "/auth/**").permitAll() // libera o cadastro e login
                         .requestMatchers("auth/esqueci-senha", "/auth/**").permitAll()
                         .requestMatchers("/empresas/cadastrar").permitAll()
-                        .requestMatchers("/ponto/marcar").authenticated()
+                        .requestMatchers("/ponto/marcar").hasAnyRole("FUNCIONARIO", "ADMIN", "GESTOR")
+                        .requestMatchers("/ponto/admin/marcar").hasAnyRole("ADMIN", "GESTOR")
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

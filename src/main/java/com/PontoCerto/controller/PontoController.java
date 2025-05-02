@@ -62,4 +62,12 @@ public class PontoController {
         List<PontoResponseDTO> pontos = pontoService.listarPontosPorEmpresa(principal.getName());
         return ResponseEntity.ok(pontos);
     }
+    @PostMapping("/admin/marcar")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('GESTOR')")
+    public ResponseEntity<String> marcarPontoParaFuncionario(@Valid @RequestBody MarcarPontoDTO dto,
+                                                             @RequestParam String emailFuncionario) {
+        pontoService.marcarPontoParaFuncionario(dto, emailFuncionario);
+        return ResponseEntity.ok("Ponto lançado com sucesso!");
+    }
+
 }

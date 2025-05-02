@@ -11,11 +11,10 @@ public class PontoResponseDTO {
     private LocalTime fimRefeicao;
     private LocalTime saida;
     private String nomeUsuario;
+    private String horasTrabalhadas; // ✅ Campo para mostrar na resposta
 
-
-    public PontoResponseDTO(Long id, LocalDate data, LocalTime entrada,
-                            LocalTime inicioRefeicao, LocalTime fimRefeicao,
-                            LocalTime saida, String nomeUsuario) {
+    public PontoResponseDTO(Long id, LocalDate data, LocalTime entrada, LocalTime inicioRefeicao,
+                            LocalTime fimRefeicao, LocalTime saida, String nomeUsuario, String horasTrabalhadas) {
         this.id = id;
         this.data = data;
         this.entrada = entrada;
@@ -23,7 +22,10 @@ public class PontoResponseDTO {
         this.fimRefeicao = fimRefeicao;
         this.saida = saida;
         this.nomeUsuario = nomeUsuario;
+        this.horasTrabalhadas = horasTrabalhadas;
     }
+
+    // Getters e setters
 
     public Long getId() {
         return id;
@@ -79,5 +81,13 @@ public class PontoResponseDTO {
 
     public void setNomeUsuario(String nomeUsuario) {
         this.nomeUsuario = nomeUsuario;
+    }
+
+    public String getHorasTrabalhadas() {
+        return horasTrabalhadas;
+    }
+
+    public void setHorasTrabalhadas(String horasTrabalhadas) {
+        this.horasTrabalhadas = horasTrabalhadas;
     }
 }
