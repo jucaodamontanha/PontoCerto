@@ -25,13 +25,6 @@ public class EscalaController {
         return ResponseEntity.ok("Escala cadastrada com sucesso!");
     }
 
-    @GetMapping("/funcionario")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('GESTOR')")
-    public ResponseEntity<EscalaTrabalho> getEscala(@RequestParam String email) {
-        EscalaTrabalho escala = escalaService.buscarEscalaPorUsuario(email);
-        return ResponseEntity.ok(escala);
-    }
-
     @DeleteMapping("/remover-folga")
     @PreAuthorize("hasRole('ADMIN') or hasRole('GESTOR')")
     public ResponseEntity<String> removerFolga(@RequestParam String email, @RequestParam String data) {

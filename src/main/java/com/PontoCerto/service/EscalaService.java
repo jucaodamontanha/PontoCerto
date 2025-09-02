@@ -4,11 +4,15 @@ import com.PontoCerto.dto.EscalaTrabalhoDTO;
 import com.PontoCerto.models.EscalaTrabalho;
 import com.PontoCerto.models.Usuario;
 import com.PontoCerto.repository.EscalaTrabalhoRepository;
+import com.PontoCerto.repository.NotificacaoResponsavelRepository;
 import com.PontoCerto.repository.UsuarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Service
 public class EscalaService {
@@ -18,6 +22,14 @@ public class EscalaService {
 
     @Autowired
     private EscalaTrabalhoRepository escalaRepository;
+
+    @Autowired
+    private JavaMailSender mailSender;
+    @Autowired
+    private NotificacaoResponsavelRepository notificacaoResponsavelRepository;
+    @Autowired
+    private EmailService emailService;
+
 
     public void cadastrarOuAtualizarEscala(EscalaTrabalhoDTO dto) {
         Usuario usuario = usuarioRepository.findByEmail(dto.getEmailFuncionario())
@@ -50,23 +62,66 @@ public class EscalaService {
                 && !escala.getFolgasIndividuais().contains(data);
     }
 
+    public boolean estaForaDaEscala(String email, LocalDate data) {
+        return !podeTrabalharNesteDia(email, data);
+    }
+
+    public void notificarGestores(String emailFuncionario, LocalDate data) {
+        List<String> emails = notificacaoResponsavelRepository.findAllByAtivoTrue()
+                .stream()
+                .map(n -> n.getEmail())
+                .toList();
+
+        if (emails.isEmpty()) return;
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(emails.toArray(new String[0]));
+        message.setSubject("⚠️ Alerta de marcação fora da escala");
+        message.setText("Funcionário " + emailFuncionario + " marcou ponto fora da escala no dia " + data + ".");
+        mailSender.send(message);
+    }
+
+    public void verificarEscalaEAvisar(String emailFuncionario, LocalDate data) {
+        if (estaForaDaEscala(emailFuncionario, data)) {
+            notificarGestores(emailFuncionario, data);
+        }
+    }
+
     public void removerFolga(String email, LocalDate data) {
         EscalaTrabalho escala = buscarEscalaPorUsuario(email);
-        escala.getFolgasIndividuais().remove(data);
+        List<LocalDate> folgas = escala.getFolgasIndividuais();
+        folgas.remove(data);
+        escala.setFolgasIndividuais(folgas);
         escalaRepository.save(escala);
     }
 
     public void adicionarFeriado(String email, LocalDate data) {
         EscalaTrabalho escala = buscarEscalaPorUsuario(email);
-        if (!escala.getFeriados().contains(data)) {
-            escala.getFeriados().add(data);
+        List<LocalDate> feriados = escala.getFeriados();
+        if (!feriados.contains(data)) {
+            feriados.add(data);
+            escala.setFeriados(feriados);
             escalaRepository.save(escala);
         }
     }
+
     public void removerFeriado(String email, LocalDate data) {
         EscalaTrabalho escala = buscarEscalaPorUsuario(email);
-        escala.getFeriados().remove(data);
+        List<LocalDate> feriados = escala.getFeriados();
+        feriados.remove(data);
+        escala.setFeriados(feriados);
         escalaRepository.save(escala);
     }
+    private void notificarForaDaEscala(String nomeUsuario, LocalDate data, String motivo) {
+        List<String> emails = notificacaoResponsavelRepository.findAllByAtivoTrue()
+                .stream()
+                .map(n -> n.getEmail())
+                .toList();
 
+        String assunto = "Alerta de marcação fora da escala";
+        String mensagem = String.format("O usuário %s registrou ponto fora da escala no dia %s.\nMotivo: %s",
+                nomeUsuario, data, motivo);
+
+        emailService.enviarEmail(emails, assunto, mensagem);
+    }
 }

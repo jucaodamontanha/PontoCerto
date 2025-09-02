@@ -25,11 +25,30 @@ public class SecurityConfiguration {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/usuarios/cadastrar", "/auth/**").permitAll() // libera o cadastro e login
-                        .requestMatchers("auth/esqueci-senha", "/auth/**").permitAll()
-                        .requestMatchers("/empresas/cadastrar").permitAll()
+                        // 🔓 Endpoints do Swagger (liberados sem autenticação)
+                        .requestMatchers(
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**",
+                                "/swagger-resources/**",
+                                "/webjars/**"
+                        ).permitAll()
+
+                        // 🔓 Endpoints públicos da aplicação
+                        .requestMatchers("/usuarios/cadastrar", "/auth/**", "/empresas/cadastrar").permitAll()
+
+                        // 🔒 Marcação de ponto
                         .requestMatchers("/ponto/marcar").hasAnyRole("FUNCIONARIO", "ADMIN", "GESTOR")
                         .requestMatchers("/ponto/admin/marcar").hasAnyRole("ADMIN", "GESTOR")
+
+                        // 🔒 Visualização de pontos
+                        .requestMatchers("/ponto/usuario/**").hasAnyRole("FUNCIONARIO", "ADMIN", "GESTOR")
+                        .requestMatchers("/ponto/empresa").hasAnyRole("ADMIN", "GESTOR")
+
+                        // 🔒 Banco de horas
+                        .requestMatchers("/banco-horas/**").hasAnyRole("FUNCIONARIO", "ADMIN", "GESTOR")
+
+                        // 🔒 Tudo o resto precisa estar autenticado
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -42,5 +61,4 @@ public class SecurityConfiguration {
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
-
 }

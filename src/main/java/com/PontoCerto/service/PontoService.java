@@ -12,10 +12,15 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 @Service
 public class PontoService {
+
+    @Autowired
+    private BancoDeHorasService bancoDeHorasService;
+
 
     @Autowired
     private PontoRepository pontoRepository;
@@ -32,23 +37,30 @@ public class PontoService {
 
         EscalaTrabalho escala = escalaService.buscarEscalaPorUsuario(emailUsuario);
 
+        boolean foraDaEscala = false;
+        StringBuilder motivo = new StringBuilder();
+
         // Validação de dia permitido
         if (!escalaService.podeTrabalharNesteDia(emailUsuario, dto.getData())) {
-            throw new RuntimeException("Não é permitido registrar ponto nesta data (folga, feriado ou dia não previsto na escala)");
+            foraDaEscala = true;
+            motivo.append("Registro em dia não previsto na escala. ");
         }
 
-        // Validação de horários (se preenchidos)
         if (dto.getEntrada() != null && dto.getEntrada().isBefore(escala.getEntrada().minusMinutes(30))) {
-            throw new RuntimeException("Horário de entrada muito adiantado em relação à escala");
+            foraDaEscala = true;
+            motivo.append("Entrada muito adiantada. ");
         }
         if (dto.getSaida() != null && dto.getSaida().isAfter(escala.getSaida().plusMinutes(30))) {
-            throw new RuntimeException("Horário de saída muito tardio em relação à escala");
+            foraDaEscala = true;
+            motivo.append("Saída muito tardia. ");
         }
         if (dto.getInicioRefeicao() != null && dto.getInicioRefeicao().isBefore(escala.getInicioRefeicao().minusMinutes(30))) {
-            throw new RuntimeException("Início do intervalo de refeição muito adiantado em relação à escala");
+            foraDaEscala = true;
+            motivo.append("Início da refeição muito adiantado. ");
         }
         if (dto.getFimRefeicao() != null && dto.getFimRefeicao().isAfter(escala.getFimRefeicao().plusMinutes(30))) {
-            throw new RuntimeException("Término do intervalo de refeição muito tardio em relação à escala");
+            foraDaEscala = true;
+            motivo.append("Fim da refeição muito tardio. ");
         }
 
         // Persistência do ponto
@@ -61,7 +73,30 @@ public class PontoService {
         ponto.setUsuario(usuario);
 
         pontoRepository.save(ponto);
+
+        // ✅ Atualiza o banco de horas APENAS se tudo estiver preenchido
+        if (!foraDaEscala &&
+                dto.getEntrada() != null && dto.getInicioRefeicao() != null &&
+                dto.getFimRefeicao() != null && dto.getSaida() != null) {
+
+            double horasTrabalhadas = calcularHorasTrabalhadas(
+                    dto.getEntrada(),
+                    dto.getInicioRefeicao(),
+                    dto.getFimRefeicao(),
+                    dto.getSaida()
+            );
+
+            // Subtrai a carga horária da escala para calcular o saldo (positiva ou negativa)
+            double cargaHorariaEscala = Duration.between(escala.getEntrada(), escala.getSaida())
+                    .minus(Duration.between(escala.getInicioRefeicao(), escala.getFimRefeicao()))
+                    .toMinutes() / 60.0;
+
+            double saldoDoDia = horasTrabalhadas - cargaHorariaEscala;
+
+            bancoDeHorasService.atualizarSaldoAutomatico(usuario, saldoDoDia);
+        }
     }
+
 
 
     public List<Ponto> listarPontosPorUsuario(String emailUsuario) {
@@ -155,5 +190,14 @@ public class PontoService {
 
         pontoRepository.save(ponto);
     }
+    private double calcularHorasTrabalhadas(LocalTime entrada, LocalTime inicioRefeicao,
+                                            LocalTime fimRefeicao, LocalTime saida) {
+        Duration tempoTotal = Duration.between(entrada, saida);
+        Duration tempoRefeicao = Duration.between(inicioRefeicao, fimRefeicao);
+        Duration tempoUtil = tempoTotal.minus(tempoRefeicao);
+
+        return tempoUtil.toMinutes() / 60.0; // retorna em horas (ex: 7.5h)
+    }
+
 
 }

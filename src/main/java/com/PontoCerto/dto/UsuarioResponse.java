@@ -17,8 +17,6 @@ public class UsuarioResponse {
         this.nomeEmpresa = nomeEmpresa;
     }
 
-    // Getters e setters
-
     public Long getId() {
         return id;
     }
